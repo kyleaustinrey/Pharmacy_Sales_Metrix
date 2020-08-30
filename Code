@@ -1,0 +1,190 @@
+#Question 1
+query_resaults <- POS_TRANS %>%
+  left_join(PROD_MASTER, by = c("PROD_NBR")) %>%
+  left_join(PROD_SEG, by = c("SEGMENT_CD" = "SEG_CD")) %>%
+  left_join(PROD_SUB_CAT, by = c("SUB_CAT_CD")) %>%
+  left_join(PROD_CAT, by = c("CAT_CD")) %>%
+  group_by(CAT_CD, CAT_DESC) %>%
+  summarise(total = sum(SLS_QTY), .groups='keep') %>%
+  select(CAT_CD, CAT_DESC, total) %>%
+  arrange(desc(total))
+  
+query_resaults %>% print(n = 100)
+
+
+#Question 2
+query_resaults <- POS_TRANS %>%
+  left_join(PROD_MASTER, by = c("PROD_NBR")) %>%
+  left_join(PROD_SEG, by = c("SEGMENT_CD" = "SEG_CD")) %>%
+  left_join(PROD_SUB_CAT, by = c("SUB_CAT_CD")) %>%
+  left_join(PROD_CAT, by = c("CAT_CD") ) %>%
+  group_by(CAT_CD, CAT_DESC) %>%
+  summarise(total = sum(total =EXT_SLS_AMT * SLS_QTY), .groups="drop") %>%
+  select(CAT_CD, CAT_DESC, total) %>%
+  arrange(desc(total))
+
+
+head(query_resaults)
+tail(query_resaults)
+
+#Question 3
+
+
+subquery_resaults <- POS_TRANS %>%
+  left_join(PROD_MASTER, by = c("PROD_NBR")) %>%
+  left_join(PROD_SEG, by = c("SEGMENT_CD" = "SEG_CD")) %>%
+  left_join(PROD_SUB_CAT, by = c("SUB_CAT_CD")) %>%
+  left_join(PROD_CAT, by = c("CAT_CD") ) %>%
+  left_join(PHRMCY_MASTER, by =c("PHRMCY_NBR"))%>%
+  group_by(CAT_CD, CAT_DESC, PHRMCY_NBR, PHRMCY_NAM) %>%
+  summarise(total = sum(total =EXT_SLS_AMT * SLS_QTY), .groups="drop") %>%
+  filter(CAT_CD %in% c("7300", "7800", "7700", "3100", "5900","1700"))%>%
+  select(CAT_CD, CAT_DESC, PHRMCY_NBR, PHRMCY_NAM, total) %>%
+  arrange(desc(total))
+
+subquery_resaults2<- aggregate( total ~ CAT_CD, subquery_resaults, mean )
+
+query_resaults <-subquery_resaults %>%
+  left_join(subquery_resaults2, by = c("CAT_CD")) %>%
+  filter(total.x <= total.y/2)%>%
+select(PHRMCY_NAM, PHRMCY_NBR, CAT_CD, CAT_DESC)
+
+query_resaults %>% print(n = 100)
+
+#Question 4
+subquery_resaults <- POS_TRANS %>%
+  left_join(PROD_MASTER, by = c("PROD_NBR")) %>%
+  left_join(PROD_SEG, by = c("SEGMENT_CD" = "SEG_CD")) %>%
+  left_join(PROD_SUB_CAT, by = c("SUB_CAT_CD")) %>%
+  left_join(PROD_CAT, by = c("CAT_CD") ) %>%
+  left_join(PHRMCY_MASTER, by =c("PHRMCY_NBR"))%>%
+  group_by(CAT_CD, CAT_DESC, ST_CD) %>%
+  summarise(total = sum(total =EXT_SLS_AMT * SLS_QTY), .groups="drop") %>%
+  filter(CAT_CD %in% c("7300", "7800", "7700", "3100", "5900","1700"))%>%
+  select(CAT_CD, CAT_DESC, ST_CD, total) %>%
+  arrange(desc(total))
+subquery_resaults2<- aggregate( total ~ ST_CD+CAT_CD, subquery_resaults, mean )
+
+query_resaults <-subquery_resaults %>%
+  left_join(subquery_resaults2, by = c("ST_CD", "CAT_CD")) %>%
+  filter(total.x <= total.y)%>%
+  select(ST_CD, CAT_CD, CAT_DESC)
+
+query_resaults %>% print(n = 100)
+
+#Question 5
+
+query_resaults <- POS_TRANS %>%
+  left_join(PROD_MASTER, by = c("PROD_NBR")) %>%
+  left_join(PROD_SEG, by = c("SEGMENT_CD" = "SEG_CD")) %>%
+  left_join(PROD_SUB_CAT, by = c("SUB_CAT_CD")) %>%
+  left_join(PROD_CAT, by = c("CAT_CD") ) %>%
+  group_by(CAT_CD, CAT_DESC, month=floor_date(SLS_DTE_NBR, "month")) %>%
+  summarize(total = sum(total =EXT_SLS_AMT * SLS_QTY))
+
+
+query_resaults <- spread(query_resaults, month, total) 
+
+query_resaults$trend <- ifelse(query_resaults$'2016-01-01' < query_resaults$'2016-06-01' , "increased", "decreased")
+
+query_resaults %>% print(n = 100)
+
+
+
+#Question 6
+subquery_resaults <- POS_TRANS %>%
+  left_join(PROD_MASTER, by = c("PROD_NBR")) %>%
+  left_join(PROD_SEG, by = c("SEGMENT_CD" = "SEG_CD")) %>%
+  left_join(PROD_SUB_CAT, by = c("SUB_CAT_CD")) %>%
+  left_join(PROD_CAT, by = c("CAT_CD") ) %>%
+  filter(SLS_DTE_NBR < '2016-03-31') %>%
+  group_by(CAT_CD, CAT_DESC) %>%
+  summarise(total = sum(total =EXT_SLS_AMT * SLS_QTY), .groups="drop") %>%
+  select(CAT_CD, CAT_DESC, total) %>%
+  arrange(desc(total))
+subquery_resaults2 <- POS_TRANS %>%
+  left_join(PROD_MASTER, by = c("PROD_NBR")) %>%
+  left_join(PROD_SEG, by = c("SEGMENT_CD" = "SEG_CD")) %>%
+  left_join(PROD_SUB_CAT, by = c("SUB_CAT_CD")) %>%
+  left_join(PROD_CAT, by = c("CAT_CD") ) %>%
+  filter(SLS_DTE_NBR > '2016-03-31') %>%
+  group_by(CAT_CD, CAT_DESC) %>%
+  summarise(total = sum(total =EXT_SLS_AMT * SLS_QTY), .groups="drop") %>%
+  select(CAT_CD, CAT_DESC, total) %>%
+  arrange(desc(total))
+#trending down
+query_resaults <- subquery_resaults %>%
+  left_join(subquery_resaults2, by = c("CAT_CD")) %>%
+  filter(total.x >total.y) %>%
+  select(CAT_CD, CAT_DESC.x)
+query_resaults
+# trending up
+query_resaults <- subquery_resaults %>%
+  left_join(subquery_resaults2, by = c("CAT_CD")) %>%
+  filter(total.x <total.y) %>%
+  select(CAT_CD, CAT_DESC.x)
+query_resaults %>% print(n = 100)
+
+#Question 7
+query_resaults <- POS_TRANS %>%
+  left_join(PROD_MASTER, by = c("PROD_NBR")) %>%
+  left_join(PROD_SEG, by = c("SEGMENT_CD" = "SEG_CD")) %>%
+  left_join(PROD_SUB_CAT, by = c("SUB_CAT_CD")) %>%
+  left_join(PROD_CAT, by = c("CAT_CD") ) %>%
+  group_by(CAT_CD, CAT_DESC) %>%
+  summarise(total = sum(SLS_QTY), .groups="drop") %>%
+  select(CAT_CD, CAT_DESC, total) %>%
+  arrange(desc(total))
+
+
+head(query_resaults)
+
+#Question 8
+query_resaults <- POS_TRANS %>%
+  left_join(PROD_MASTER, by = c("PROD_NBR")) %>%
+  left_join(PROD_SEG, by = c("SEGMENT_CD" = "SEG_CD")) %>%
+  left_join(PROD_SUB_CAT, by = c("SUB_CAT_CD")) %>%
+  left_join(PROD_CAT, by = c("CAT_CD") ) %>%
+  group_by(CAT_CD, CAT_DESC) %>%
+  summarise(total = sum(SLS_QTY), .groups="drop") %>%
+  select(CAT_CD, CAT_DESC, total) %>%
+  arrange(desc(total))
+tail(query_resaults)
+
+
+#Question 9
+
+query_resaults <- POS_TRANS %>%
+  left_join(PROD_MASTER, by = c("PROD_NBR")) %>%
+  left_join(PROD_SEG, by = c("SEGMENT_CD" = "SEG_CD")) %>%
+  left_join(PROD_SUB_CAT, by = c("SUB_CAT_CD")) %>%
+  left_join(PROD_CAT, by = c("CAT_CD") ) %>%
+  group_by(CAT_CD, CAT_DESC, month=floor_date(SLS_DTE_NBR, "month")) %>%
+  summarize(total = sum(total =EXT_SLS_AMT * SLS_QTY))
+
+query_resaults <- spread(query_resaults, month, total) 
+
+query_resaults$SD <- apply(query_resaults[3:8], 1, sd)
+
+query_resaults <- query_resaults%>%
+  filter(SD >`2016-06-01`)
+
+query_resaults 
+
+#Question 10
+
+query_resaults <- POS_TRANS %>%
+  left_join(PROD_MASTER, by = c("PROD_NBR")) %>%
+  left_join(PROD_SEG, by = c("SEGMENT_CD" = "SEG_CD")) %>%
+  left_join(PROD_SUB_CAT, by = c("SUB_CAT_CD")) %>%
+  left_join(PROD_CAT, by = c("CAT_CD") ) %>%
+  group_by(CAT_CD, CAT_DESC, month=floor_date(SLS_DTE_NBR, "month")) %>%
+  summarize(total = sum(total =EXT_SLS_AMT * SLS_QTY))
+
+query_resaults <- spread(query_resaults, month, total) 
+
+query_resaults$SD <- apply(query_resaults[3:8], 1, sd)
+query_resaults$MEAN <- apply(query_resaults[3:8], 1, mean)
+query_resaults <- query_resaults %>%
+  summarise(consitancy= SD/MEAN)
+query_resaults[order(query_resaults$consitancy),] %>% print(n = 100)
